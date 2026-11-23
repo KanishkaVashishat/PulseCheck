@@ -128,3 +128,72 @@ def run_monitor_check(
         "response_time": new_check.response_time,
         "is_success": new_check.is_success
     }
+
+
+@app.get("/monitors/{monitor_id}/checks")
+def get_monitor_checks(
+    monitor_id: int,
+    db: Session = Depends(get_db)
+):
+    monitor = db.query(Monitor).filter(
+        Monitor.id == monitor_id
+    ).first()
+
+    if monitor is None:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+
+    checks = db.query(HealthCheck).filter(
+        HealthCheck.monitor_id == monitor_id
+    ).order_by(HealthCheck.checked_at.desc()).all()
+
+    return checks
+
+
+@app.get("/monitors/{monitor_id}/stats")
+def get_monitor_stats(
+    monitor_id: int,
+    db: Session = Depends(get_db)
+):
+    monitor = db.query(Monitor).filter(
+        Monitor.id == monitor_id
+    ).first()
+
+    if monitor is None:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+
+    checks = db.query(HealthCheck).filter(
+        HealthCheck.monitor_id == monitor_id
+    ).all()
+
+    total_checks = len(checks)
+
+    successful_checks = sum(
+        1 for check in checks if check.is_success
+    )
+
+    failed_checks = total_checks - successful_checks
+
+    uptime_percentage = (
+        successful_checks / total_checks * 100
+        if total_checks > 0 else 0
+    )
+
+    response_times = [
+        check.response_time
+        for check in checks
+        if check.response_time is not None
+    ]
+
+    avg_response_time = (
+        sum(response_times) / len(response_times)
+        if response_times else 0
+    )
+
+    return {
+        "monitor": monitor.name,
+        "total_checks": total_checks,
+        "successful_checks": successful_checks,
+        "failed_checks": failed_checks,
+        "uptime_percentage": round(uptime_percentage, 2),
+        "average_response_time": round(avg_response_time, 2)
+    }
