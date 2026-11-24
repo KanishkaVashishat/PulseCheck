@@ -4,7 +4,11 @@ from sqlalchemy.orm import Session
 from app.database import engine, Base, SessionLocal
 from app import models
 from app.models import Monitor, HealthCheck
-from app.schemas import MonitorCreate
+from app.schemas import (
+    MonitorCreate,
+    MonitorResponse,
+    HealthCheckResponse
+)
 from app.monitoring import check_website
 
 Base.metadata.create_all(bind=engine)
@@ -68,12 +72,11 @@ def create_monitor(
 
     return new_monitor
 
-@app.get("/monitors")
+@app.get("/monitors", response_model=list[MonitorResponse])
 def get_monitors(db: Session = Depends(get_db)):
-    monitors = db.query(Monitor).all()
-    return monitors
+    return db.query(Monitor).all()
 
-@app.get("/monitors/{monitor_id}")
+@app.get("/monitors/{monitor_id}",response_model=MonitorResponse)
 def get_monitor(monitor_id: int, db: Session = Depends(get_db)):
 
     monitor = db.query(Monitor).filter(
@@ -130,7 +133,10 @@ def run_monitor_check(
     }
 
 
-@app.get("/monitors/{monitor_id}/checks")
+@app.get(
+    "/monitors/{monitor_id}/checks",
+    response_model=list[HealthCheckResponse]
+)
 def get_monitor_checks(
     monitor_id: int,
     db: Session = Depends(get_db)
