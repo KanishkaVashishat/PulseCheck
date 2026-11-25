@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.database import engine, Base, SessionLocal
@@ -19,6 +19,11 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def send_notification(monitor_name, status_code):
+    print(f"Monitor: {monitor_name}")
+    print(f"Status: {status_code}")
+    print("Website monitoring completed!")
 
 app = FastAPI(
     title = "PulseCheck",
@@ -94,6 +99,7 @@ def get_monitor(monitor_id: int, db: Session = Depends(get_db)):
 @app.post("/monitors/{monitor_id}/check")
 def run_monitor_check(
     monitor_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     # 1. Find monitor in database
@@ -109,6 +115,11 @@ def run_monitor_check(
 
     # 2. Check the website
     result = check_website(monitor.url)
+    background_tasks.add_task(
+    send_notification,
+    monitor.name,
+    result["status_code"]
+    )
 
     # 3. Create health check record
     new_check = HealthCheck(
@@ -202,4 +213,17 @@ def get_monitor_stats(
         "failed_checks": failed_checks,
         "uptime_percentage": round(uptime_percentage, 2),
         "average_response_time": round(avg_response_time, 2)
+    }
+
+@app.get("/test-background")
+def test_background(background_tasks: BackgroundTasks):
+
+    background_tasks.add_task(
+    send_notification,
+    "Google",
+    200
+    )
+
+    return {
+        "message": "Response sent! Background task is running."
     }
