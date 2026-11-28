@@ -40,3 +40,21 @@ class HealthCheck(Base):
     checked_at = Column(DateTime, server_default=func.now())
 
     monitor = relationship("Monitor", back_populates="health_checks")
+
+
+
+class Incident(Base):
+    __tablename__ = "incidents"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    monitor_id = Column(
+        Integer,
+        ForeignKey("monitors.id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    started_at = Column(DateTime, server_default=func.now())
+    resolved_at = Column(DateTime, nullable=True)
+
+    is_resolved = Column(Boolean, default=False)

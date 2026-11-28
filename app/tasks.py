@@ -3,7 +3,7 @@ from app.celery_worker import celery_app
 from app.database import SessionLocal
 from app.models import Monitor, HealthCheck
 from app.monitoring import check_website
-
+from app.incident_service import process_monitor_check
 
 @celery_app.task
 def test_task():
@@ -29,17 +29,8 @@ def check_all_monitors():
             try:
                 result = check_website(monitor.url)
 
-                # 3. Create health check record
-                new_check = HealthCheck(
-                    monitor_id=monitor.id,
-                    status_code=result["status_code"],
-                    response_time=result["response_time"],
-                    is_success=result["is_success"]
-                )
-
-                # 4. Save in database
-                db.add(new_check)
-                db.commit()
+                # Save health check and process incident logic
+                process_monitor_check(db, monitor, result)
 
                 checked_count += 1
 

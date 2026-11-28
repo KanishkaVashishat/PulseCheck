@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
-
+from app.incident_service import process_monitor_check
 from app.database import engine, Base, SessionLocal
 from app import models
 from app.models import Monitor, HealthCheck
@@ -122,17 +122,8 @@ def run_monitor_check(
     )
 
     # 3. Create health check record
-    new_check = HealthCheck(
-        monitor_id=monitor.id,
-        status_code=result["status_code"],
-        response_time=result["response_time"],
-        is_success=result["is_success"]
-    )
-
-    # 4. Save result in PostgreSQL
-    db.add(new_check)
-    db.commit()
-    db.refresh(new_check)
+    new_check = process_monitor_check(db, monitor, result)
+        
 
     # 5. Return result
     return {
